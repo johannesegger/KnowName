@@ -1,9 +1,11 @@
 open System
 open System.IO
+open System.Net.Mime
 open FSharp.Data.Sql
 open Giraffe
 open Giraffe.Serialization
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Net.Http.Headers
 open Saturn
 open Shared
 
@@ -180,7 +182,7 @@ let browserRouter = scope {
 let readOptImage = function
     | Some path ->
         let handler =
-            setHttpHeader "Content-Type" "image/jpeg"
+            setHttpHeader HeaderNames.ContentType MediaTypeNames.Image.Jpeg
             >=> setBody (File.ReadAllBytes path)
         Successful.ok handler
     | None ->
