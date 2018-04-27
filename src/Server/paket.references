@@ -1,9 +1,7 @@
 group Server
-  FSharp.Core
-
-  Saturn
-
-  Fable.JsonConverter
-
-
-  Microsoft.DotNet.Watcher.Tools
+    FSharp.Core
+    SQLProvider
+    Mysql.Data
+    Saturn
+    Fable.JsonConverter
+    Microsoft.DotNet.Watcher.Tools

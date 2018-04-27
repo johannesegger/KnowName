@@ -1,26 +1,29 @@
 group Server
-  storage: none
-  source https://api.nuget.org/v3/index.json
+    storage: none
+    source https://api.nuget.org/v3/index.json
 
-  nuget FSharp.Core
-  nuget Saturn
-  nuget Fable.JsonConverter
+    nuget FSharp.Core
+    nuget SQLProvider
+    nuget Mysql.Data ~> 6 storage:packages
+    nuget FSharp.Compiler.Tools storage:packages
+    nuget Saturn
+    nuget Fable.JsonConverter
 
-  clitool Microsoft.DotNet.Watcher.Tools
+    clitool Microsoft.DotNet.Watcher.Tools
 
 group Client
-  storage: none
-  source https://api.nuget.org/v3/index.json
+    storage: none
+    source https://api.nuget.org/v3/index.json
 
-  nuget Fable.Core
-  nuget Fable.Elmish.Debugger
-  nuget Fable.Elmish.React
-  nuget Fable.Elmish.HMR
-  nuget Fulma 1.0.0-beta-015
+    nuget Fable.Core
+    nuget Fable.Elmish.Debugger
+    nuget Fable.Elmish.React
+    nuget Fable.Elmish.HMR
+    nuget Fulma 1.0.0-beta-015
 
-  clitool dotnet-fable
+    clitool dotnet-fable
 
 group Build
-  source https://api.nuget.org/v3/index.json
+    source https://api.nuget.org/v3/index.json
 
-  nuget FAKE
+    nuget FAKE
