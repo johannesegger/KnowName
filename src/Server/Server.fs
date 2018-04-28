@@ -34,10 +34,10 @@ let getGroups() = task {
         }
         |> Seq.executeQueryAsync
         |> Async.StartAsTask
-    return [|
+    return [
         yield Teachers
         yield! classNames
-    |] 
+    ]
 }
 
 type Teacher = {
@@ -98,7 +98,7 @@ let getTeachers imageDir = task {
                 // printfn "Can't find image for %s %s" p.LastName p.FirstName
                 None
         )
-        |> Seq.toArray
+        |> Seq.toList
 }
 
 let getTeacherImage imageDir teacherId = task {
@@ -154,6 +154,7 @@ let getStudents imageDir className = task {
                 // printfn "Can't find image for %s %s" student.LastName student.FirstName
                 None
         )
+        |> Seq.toList
 }
 
 let getStudentImage imageDir studentId = task {
