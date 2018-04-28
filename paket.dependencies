@@ -3,6 +3,7 @@ group Server
     source https://api.nuget.org/v3/index.json
 
     nuget FSharp.Core
+    nuget SixLabors.ImageSharp 1.0.0-beta0002 beta
     nuget SQLProvider
     nuget Mysql.Data ~> 6 storage:packages
     nuget FSharp.Compiler.Tools storage:packages

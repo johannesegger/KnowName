@@ -4,10 +4,14 @@ open System.Net.Mime
 open FSharp.Data.Sql
 open Giraffe
 open Giraffe.Serialization
+open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Net.Http.Headers
 open Saturn
+open SixLabors.ImageSharp
+open SixLabors.ImageSharp.Processing
 open Shared
+open SixLabors.Primitives
 
 let clientPath = Path.Combine("..","Client") |> Path.GetFullPath
 
@@ -179,14 +183,46 @@ let browserRouter = scope {
     get "/" (htmlFile (Path.Combine(clientPath, "index.html")))
 }
 
-let readOptImage = function
+let resizeFile (maxWidth, maxHeight) (path: string) =
+    let limit value max =
+        if value > max
+        then max
+        else value
+    let size =
+        match maxWidth, maxHeight with
+        | Some width, Some height -> Size(limit width 1000, limit height 1000) |> Some
+        | Some width, None -> Size(limit width 1000, 0) |> Some
+        | None, Some height -> Size(0, limit height 1000) |> Some
+        | None, None -> None
+    match size with
+    | Some size ->
+        use image = Image.Load path
+        image.Mutate(fun ctx ->
+            ResizeOptions(
+                Size = size,
+                Mode = ResizeMode.Max
+            )
+            |> ctx.Resize
+            |> ignore
+        )
+        use stream = new MemoryStream()
+        image.Save(stream, ImageFormats.Jpeg)
+        stream.ToArray()
+    | None -> File.ReadAllBytes path
+
+let readAndResizeOptImage size = function
     | Some path ->
         let handler =
             setHttpHeader HeaderNames.ContentType MediaTypeNames.Image.Jpeg
-            >=> setBody (File.ReadAllBytes path)
+            >=> setBody (resizeFile size path)
         Successful.ok handler
     | None ->
         RequestErrors.notFound (fun fn ctx -> fn ctx)
+
+let tryGetQueryValue key (request: HttpRequest) =
+    match request.Query.TryGetValue key with
+    | (true, value) -> Some value.[0]
+    | _ -> None
 
 let apiRouter (teacherImageDir, studentImageDir) = scope {
     get "/get-groups" (fun next ctx ->
@@ -206,7 +242,9 @@ let apiRouter (teacherImageDir, studentImageDir) = scope {
     getf "/get-teacher-image/%s" (fun teacherId next ctx ->
         task {
             let! imagePath = getTeacherImage teacherImageDir teacherId
-            return! readOptImage imagePath next ctx
+            let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
+            let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
+            return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
         }
     )
 
@@ -220,7 +258,9 @@ let apiRouter (teacherImageDir, studentImageDir) = scope {
     getf "/get-student-image/%s" (fun studentId next ctx ->
         task {
             let! imagePath = getStudentImage studentImageDir studentId
-            return! readOptImage imagePath next ctx
+            let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
+            let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
+            return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
         }
     )
 }

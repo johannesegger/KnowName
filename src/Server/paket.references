@@ -5,3 +5,4 @@ group Server
     Saturn
     Fable.JsonConverter
     Microsoft.DotNet.Watcher.Tools
+    SixLabors.ImageSharp
