@@ -128,7 +128,7 @@ let root model dispatch =
                                                   )
                                                   RAC.RenderMenu (fun items ->
                                                     ReactPopper.popper
-                                                        [ ReactPopper.Placement "right-start"
+                                                        [ ReactPopper.Placement "right-bottom"
                                                           ReactPopper.Style (keyValueList CaseRules.LowerFirst [ Border "1px solid #ddd"; BackgroundColor "white"; Width "100%" ])
                                                         ]
                                                         items
