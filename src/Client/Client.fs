@@ -2,13 +2,16 @@ module Client
 
 open Elmish
 open Elmish.React
+open Fable.Core.JsInterop
 
 #if DEBUG
 open Elmish.Debug
 open Elmish.HMR
 #endif
 
-open Client.Components.Main
+open Components.Main
+
+importAll "./Styles/main.sass"
 
 Program.mkProgram State.init State.update View.root
 |> Program.withSubscription State.closeDropdownsOnDocumentClickSubscription

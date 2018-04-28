@@ -1,4 +1,4 @@
-module Client.Components.Main.View
+module Components.Main.View
 
 open Fable.Core
 open Fable.Core.JsInterop

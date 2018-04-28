@@ -1,4 +1,4 @@
-namespace Client.Components.Main
+namespace Components.Main
 
 open Shared
 
