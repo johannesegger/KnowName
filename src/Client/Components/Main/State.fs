@@ -84,7 +84,7 @@ let update msg model =
                         {
                             Group = group
                             RemainingPersons = shuffle group.Persons
-                            CurrentGuess = Option.None
+                            CurrentGuess = ""
                         }
             },
         Cmd.none
@@ -129,7 +129,7 @@ let update msg model =
                         {
                             playingModel with
                                 RemainingPersons = remainingPersons
-                                CurrentGuess = Option.None
+                                CurrentGuess = ""
                         }
                     Score = fn loadedModel.Score
                 }
@@ -154,7 +154,7 @@ let update msg model =
                 SelectedGroup = Selection
                     {
                         playingModel with
-                            CurrentGuess = Some text
+                            CurrentGuess = text
                     }
             },
         Cmd.none

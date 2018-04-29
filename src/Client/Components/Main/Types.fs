@@ -20,7 +20,7 @@ module Group =
 type PlayingModel = {
     Group: LoadedGroup
     RemainingPersons: Person list
-    CurrentGuess: string option
+    CurrentGuess: string
 }
 
 module PlayingModel =

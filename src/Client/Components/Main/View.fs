@@ -114,7 +114,7 @@ let root model dispatch =
                           yield Card.footer []
                             [ Card.Footer.item []
                                 [ Container.container [ Container.IsFluid ]
-                                    [ R.form [ Action "javascript:void(0);"; OnSubmit (fun _ev -> playingModel.CurrentGuess |> Option.defaultValue "" |> SubmitGuess |> dispatch) ]
+                                    [ R.form [ Action "javascript:void(0);"; OnSubmit (fun _ev -> playingModel.CurrentGuess |> SubmitGuess |> dispatch) ]
                                         [ ReactPopper.manager [ ReactPopper.Tag false ]
                                             [ ReactAutocomplete.autocomplete
                                                 [ RAC.Items (List.toArray playingModel.Group.Persons)
@@ -138,7 +138,7 @@ let root model dispatch =
                                                   )
                                                   RAC.OnChange (fun _ev value -> UpdateGuess value |> dispatch)
                                                   RAC.OnSelect (fun value _item -> SubmitGuess value |> dispatch)
-                                                  RAC.Value (Option.defaultValue "" playingModel.CurrentGuess)
+                                                  RAC.Value playingModel.CurrentGuess
                                                   RAC.ShouldItemRender (fun item (value: string) -> item.DisplayName.ToLower().Contains(value.ToLower()))
                                                   RAC.MenuStyle (keyValueList CaseRules.LowerFirst [ Bottom "100px" ])
                                                   RAC.InputProps [ ClassName "input is-large"; Placeholder "Name" ]
