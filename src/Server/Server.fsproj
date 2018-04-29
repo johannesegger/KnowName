@@ -6,7 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Shared\Shared.fs" />
-    <Compile Include="CommandLine.fs" />
     <Compile Include="SisDb.fs" />
     <Compile Include="Server.fs" />
   </ItemGroup>

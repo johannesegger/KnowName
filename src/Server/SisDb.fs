@@ -1,5 +1,6 @@
 module SisDb
 
+open System
 open FSharp.Data.Sql
 
 [<Literal>]
@@ -14,6 +15,8 @@ type private SisSqlDataProvider =
         DatabaseVendor = Common.DatabaseProviderTypes.MYSQL,
         ResolutionPath = ResolutionPath,
         UseOptionTypes = true>
-let private ctx = SisSqlDataProvider.GetDataContext()
+let private ctx =
+    let connectionString = Environment.GetEnvironmentVariable "DB_CONNECTION_STRING"
+    SisSqlDataProvider.GetDataContext connectionString
 
 let sis2 = ctx.Sis2

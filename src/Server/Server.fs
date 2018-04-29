@@ -282,12 +282,15 @@ let app teacherDir = application {
 
 [<EntryPoint>]
 let main argv =
-    let tryGetArg = CommandLine.tryGetArg argv
+    let tryGetEnvVar key =
+        match Environment.GetEnvironmentVariable key with
+        | x when String.IsNullOrEmpty x -> None
+        | x -> Some x
 
-    match tryGetArg "teacher-image-dir", tryGetArg "student-image-dir" with
+    match tryGetEnvVar "TEACHER_IMAGES_PATH", tryGetEnvVar "STUDENT_IMAGES_PATH" with
     | Some teacherImageDir, Some studentImageDir ->
         app (teacherImageDir, studentImageDir) |> run
         0
     | _ ->
-        eprintfn "Usage: dotnet run -- --teacher-image-dir <path> --student-image-dir <path>"
+        eprintfn "ERROR: environment variables `TEACHER_IMAGES_PATH` and `STUDENT_IMAGES_PATH` not set"
         1

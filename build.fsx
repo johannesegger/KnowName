@@ -56,11 +56,7 @@ Target "Build" (fun () ->
 
 Target "Run" (fun () ->
   let server = async {
-    let teacherImageDir = __SOURCE_DIRECTORY__ </> "test" </> "photos" </> "teachers"
-    let teacherImageDirArg = sprintf "--teacher-image-dir \"%s\"" teacherImageDir
-    let studentImageDir = __SOURCE_DIRECTORY__ </> "test" </> "photos" </> "students"
-    let studentImageDirArg = sprintf "--student-image-dir \"%s\"" studentImageDir
-    run dotnetCli (sprintf "watch run -- %s %s" teacherImageDirArg studentImageDirArg) serverPath
+    run dotnetCli "watch run" serverPath
   }
   let client = async {
     run dotnetCli "fable webpack-dev-server" clientPath
