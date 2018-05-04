@@ -16,7 +16,7 @@ let lookup names (name: string) =
     then []
     else
         names
-        |> Seq.filter (fun n -> n.DisplayName.ToLower().Contains(name.ToLower()))
+        |> Seq.filter (fun n -> n.DisplayName.ToUpper().Contains(name.ToUpper()))
         |> Seq.toList
 
 let getGuessResult choices correctChoice text =
@@ -85,6 +85,11 @@ let update msg model =
                             Group = group
                             RemainingPersons = shuffle group.Persons
                             CurrentGuess = ""
+                            Suggestions =
+                                {
+                                    Items = group.Persons
+                                    Highlighted = None
+                                }
                         }
             },
         Cmd.none
@@ -130,6 +135,10 @@ let update msg model =
                             playingModel with
                                 RemainingPersons = remainingPersons
                                 CurrentGuess = ""
+                                Suggestions =
+                                    { playingModel.Suggestions with
+                                        Items = playingModel.Group.Persons
+                                    }
                         }
                     Score = fn loadedModel.Score
                 }
@@ -155,6 +164,12 @@ let update msg model =
                     {
                         playingModel with
                             CurrentGuess = text
+                            Suggestions =
+                                { playingModel.Suggestions with
+                                    Items = 
+                                        playingModel.Group.Persons
+                                        |> List.filter (fun p -> p.DisplayName.ToUpper().Contains(text.ToUpper()))
+                                }
                     }
             },
         Cmd.none

@@ -17,10 +17,16 @@ module Group =
         | LoadedGroup { Group = g } ->
             RawGroup.toString g
 
+type Suggestions = {
+    Items: Person list
+    Highlighted: Person option
+}
+
 type PlayingModel = {
     Group: LoadedGroup
     RemainingPersons: Person list
     CurrentGuess: string
+    Suggestions: Suggestions
 }
 
 module PlayingModel =
