@@ -73,8 +73,8 @@ let getTeachers imageDir = task {
             where p.Lname.IsSome
             where p.Lvorname.IsSome
             sortBy p.Llogin
-            thenBy p.Lvorname
             thenBy p.Lname
+            thenBy p.Lvorname
             select {
                 ShortName = p.Llogin
                 LastName = p.Lname.Value
@@ -130,6 +130,8 @@ let getStudents imageDir className = task {
             where (p.SchoolClass =% className)
             where p.FirstName1.IsSome
             where p.LastName.IsSome
+            sortBy p.LastName
+            thenBy p.FirstName1
             select {
                 Id = p.SokratesId
                 FirstName = p.FirstName1.Value
