@@ -18,25 +18,28 @@ var babelOptions = fableUtils.resolveBabelOptions({
   plugins: ["transform-runtime"]
 });
 
-
 var isProduction = process.argv.indexOf("-p") >= 0;
 var port = process.env.SUAVE_FABLE_PORT || "8085";
 console.log("Bundling for " + (isProduction ? "production" : "development") + "...");
 
 module.exports = {
   devtool: "source-map",
-  entry: resolve('./Client.fsproj'),
+  entry: {
+    client: resolve('./src/Client/Client.fsproj'),
+    sw: resolve('./src/ServiceWorker/ServiceWorker.fsproj')
+  },
   output: {
     path: resolve('./public'),
     publicPath: "/public",
-    filename: "bundle.js"
+    filename: "[name].js"
   },
   resolve: {
-    modules: [ resolve("../../node_modules/")]
+    modules: [ resolve("./node_modules/")]
   },
   devServer: {
     host: '0.0.0.0',
     port: 8080,
+    https: true,
     proxy: {
       '/api/*': {
         target: 'http://localhost:' + port,
@@ -75,7 +78,7 @@ module.exports = {
         ]
       },
       {
-        test: /\.(eot|svg|ttf|woff|woff2)(\?|$)/,
+        test: /\.(eot|svg|ttf|woff|woff2|webmanifest)(\?|$)/,
         use: {
           loader: 'file-loader',
           options: {

@@ -10,11 +10,21 @@ open Elmish.HMR
 #endif
 
 open Components.Main
+open Fable.Import.Browser
+open Fable.PowerPack
 
 importAll "./Styles/main.sass"
 
+if not <| isNull navigator.serviceWorker then
+    printfn "Registering service worker"
+    navigator.serviceWorker.register "./sw.js"
+    |> Promise.start
+else
+    eprintfn "Cannot register service worker"
+
 Program.mkProgram State.init State.update View.root
 |> Program.withSubscription State.closeDropdownsOnDocumentClickSubscription
+|> Program.withSubscription State.navigateThroughSuggestions
 #if DEBUG
 |> Program.withConsoleTrace
 |> Program.withHMR

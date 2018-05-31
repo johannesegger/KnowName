@@ -25,6 +25,14 @@ group Client
 
     clitool dotnet-fable
 
+group ServiceWorker
+    storage: none
+    source https://api.nuget.org/v3/index.json
+
+    nuget Fable.Core
+
+    clitool dotnet-fable
+
 group Build
     source https://api.nuget.org/v3/index.json
 

@@ -1,0 +1,13 @@
+{
+  "name": "KnowName",
+  "short_name": "KnowName",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fff",
+  "description": "Learn student names given their profile picture.",
+  "icons": [{
+    "src": "./Images/favicon.png",
+    "sizes": "64x64",
+    "type": "image/png"
+  }]
+}

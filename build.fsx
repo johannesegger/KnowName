@@ -4,9 +4,11 @@ open System
 
 open Fake
 
-let serverPath = "./src/Server" |> FullName
-let clientPath = "./src/Client" |> FullName
-let deployDir = "./deploy" |> FullName
+let rootPath = __SOURCE_DIRECTORY__
+let serverPath = rootPath @@ "./src/Server"
+let clientPath = rootPath @@ "./src/Client"
+let serviceWorkerPath = rootPath @@ "./src/ServiceWorker"
+let deployDir = rootPath @@ "./deploy"
 
 let platformTool tool winTool =
   let tool = if isUnix then tool else winTool
@@ -38,11 +40,12 @@ Target "InstallDotNetCore" (fun _ ->
 
 Target "InstallClient" (fun _ ->
   printfn "Node version:"
-  run nodeTool "--version" __SOURCE_DIRECTORY__
+  run nodeTool "--version" rootPath
   printfn "Yarn version:"
-  run yarnTool "--version" __SOURCE_DIRECTORY__
-  run yarnTool "install --frozen-lockfile" __SOURCE_DIRECTORY__
+  run yarnTool "--version" rootPath
+  run yarnTool "install --frozen-lockfile" rootPath
   run dotnetCli "restore" clientPath
+  run dotnetCli "restore" serviceWorkerPath
 )
 
 Target "RestoreServer" (fun () -> 
@@ -51,7 +54,7 @@ Target "RestoreServer" (fun () ->
 
 Target "Build" (fun () ->
   run dotnetCli "build" serverPath
-  run dotnetCli "fable webpack -- -p" clientPath
+  run dotnetCli "fable webpack -- -p" clientPath//rootPath
 )
 
 Target "Run" (fun () ->
@@ -86,6 +89,7 @@ Target "Bundle" (fun _ ->
   !! "src/Client/Images/**/*.*" |> CopyFiles imageDir
 
   !! "src/Client/index.html"
+  ++ "src/Client/manifest.webmanifest"
   ++ "src/Client/*.css"
   |> CopyFiles clientDir 
 )
