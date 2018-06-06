@@ -132,12 +132,12 @@ let root model dispatch =
                                   Tile.parent [ Tile.Props [ Style [ MinHeight "auto" ] ] ]
                                     [
                                       Tile.child [ Tile.Props [ Style [ Height "100%" ] ] ]
-                                        [ Box.box' [ Common.Props [ Style [ Height "100%"; OverflowY "auto" ] ] ]
+                                        [ Box.box' [ Common.Props [ Id "suggestions"; Style [ Height "100%"; OverflowY "auto" ] ] ]
                                             [
                                                 for p in playingModel.Suggestions.Items do
                                                 yield
                                                     Dropdown.Item.a
-                                                      [ Dropdown.Item.IsActive false
+                                                      [ Dropdown.Item.IsActive (playingModel.Suggestions.Highlighted = Some p)
                                                         Dropdown.Item.Props
                                                           [ OnClick (fun _ev -> SubmitGuess p.DisplayName |> dispatch) ]
                                                       ]

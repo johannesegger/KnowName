@@ -60,6 +60,9 @@ type Msg =
     | CloseDropdowns
     | SubmitGuess of string
     | UpdateGuess of string
+    | HighlightPreviousSuggestion
+    | HighlightNextSuggestion
+    | ScrollHighlightedSuggestionIntoView
     | ResetScore
 
 type GuessResult =

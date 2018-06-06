@@ -3,6 +3,7 @@ module Components.Main.State
 open System
 open Elmish
 open Fable.Core
+open Fable.Core.JsInterop
 open Fable.Helpers.React.Props
 open Fable.Import
 open Fable.PowerPack
@@ -56,6 +57,20 @@ let shuffle =
         Array.iteri (fun i _ -> swap a i (rand.Next(i, Array.length a))) a
         List.ofArray a
 
+let changeHighlightedSuggestion modifyIndex defaultItem suggestions =
+    suggestions.Highlighted
+    |> Option.bind (fun p ->
+        suggestions.Items
+        |> List.tryFindIndex ((=)p)
+    )
+    |> Option.bind(fun idx ->
+        suggestions.Items
+        |> List.tryItem (modifyIndex idx)
+    )
+    |> function
+    | None -> defaultItem
+    | x -> x
+
 let update msg model =
     match msg, model with
     | LoadDataSuccess groups, Loading ->
@@ -88,7 +103,7 @@ let update msg model =
                             Suggestions =
                                 {
                                     Items = group.Persons
-                                    Highlighted = None
+                                    Highlighted = List.tryHead group.Persons
                                 }
                         }
             },
@@ -138,6 +153,7 @@ let update msg model =
                                 Suggestions =
                                     { playingModel.Suggestions with
                                         Items = playingModel.Group.Persons
+                                        Highlighted = List.tryHead playingModel.Group.Persons
                                     }
                         }
                     Score = fn loadedModel.Score
@@ -158,20 +174,71 @@ let update msg model =
             updateScore (fun s -> s - 1),
             Cmd.none
     | UpdateGuess text, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
+        let suggestions =
+            playingModel.Group.Persons
+            |> List.filter (fun p -> p.DisplayName.ToUpper().Contains(text.ToUpper()))
+        let highlighted =
+            match playingModel.Suggestions.Highlighted with
+            | Some p ->
+                if suggestions |> List.contains p
+                then Some p
+                else List.tryHead suggestions
+            | None -> List.tryHead suggestions
+
         Loaded
             { loadedModel with
                 SelectedGroup = Selection
-                    {
-                        playingModel with
-                            CurrentGuess = text
-                            Suggestions =
-                                { playingModel.Suggestions with
-                                    Items = 
-                                        playingModel.Group.Persons
-                                        |> List.filter (fun p -> p.DisplayName.ToUpper().Contains(text.ToUpper()))
-                                }
+                    { playingModel with
+                        CurrentGuess = text
+                        Suggestions =
+                            { playingModel.Suggestions with
+                                Items = suggestions
+                                Highlighted = highlighted
+                            }
                     }
             },
+        Cmd.none
+    | HighlightPreviousSuggestion, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
+        let highlighted =
+            changeHighlightedSuggestion
+                (fun idx -> idx - 1)
+                (List.tryLast playingModel.Suggestions.Items)
+                playingModel.Suggestions
+        Loaded
+            { loadedModel with
+                SelectedGroup =
+                    Selection
+                        { playingModel with
+                            Suggestions =
+                                { playingModel.Suggestions with Highlighted = highlighted }
+                        }
+            },
+        Cmd.ofMsg ScrollHighlightedSuggestionIntoView
+    | HighlightNextSuggestion, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
+        let highlighted =
+            changeHighlightedSuggestion
+                (fun idx -> idx + 1)
+                (List.tryHead playingModel.Suggestions.Items)
+                playingModel.Suggestions
+        Loaded
+            { loadedModel with
+                SelectedGroup =
+                    Selection
+                        { playingModel with
+                            Suggestions =
+                                { playingModel.Suggestions with Highlighted = highlighted }
+                        }
+            },
+        Cmd.ofMsg ScrollHighlightedSuggestionIntoView
+    | ScrollHighlightedSuggestionIntoView, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
+        playingModel.Suggestions.Highlighted
+        |> Option.bind (fun p -> List.tryFindIndex ((=)p) playingModel.Suggestions.Items)
+        |> Option.iter (fun idx ->
+            let el = Browser.document.querySelectorAll("#suggestions .dropdown-item").[idx]
+            el?scrollIntoView() |> ignore
+        )
+
+        Loaded loadedModel,
         Cmd.none
     | ResetScore, Loaded loadedModel ->
         Loaded
@@ -186,5 +253,15 @@ let update msg model =
 let closeDropdownsOnDocumentClickSubscription _model =
     let sub dispatch =
         Browser.document.addEventListener_click (fun _ -> dispatch CloseDropdowns)
+    Cmd.ofSub sub
+
+let navigateThroughSuggestionsSubscription _model =
+    let keyUp, keyDown = 38., 40.
+    let sub dispatch =
+        Browser.document.addEventListener_keydown
+            (fun ev ->
+                if ev.keyCode = keyDown then dispatch HighlightNextSuggestion
+                elif ev.keyCode = keyUp then dispatch HighlightPreviousSuggestion
+            )
     Cmd.ofSub sub
         
