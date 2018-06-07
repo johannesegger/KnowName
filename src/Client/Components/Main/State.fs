@@ -12,22 +12,6 @@ open Fulma
 open Shared
 module R = Fable.Helpers.React
 
-let lookup names (name: string) =
-    if name = ""
-    then []
-    else
-        names
-        |> Seq.filter (fun n -> n.DisplayName.ToUpper().Contains(name.ToUpper()))
-        |> Seq.toList
-
-let getGuessResult choices correctChoice text =
-    if text = ""
-    then Skipped
-    else
-        match lookup choices text with
-        | [ choice ] when choice = correctChoice -> Correct
-        | choices -> Incorrect choices
-
 let init() =
     Loading,
     Cmd.ofPromise (fetchAs<RawGroup list> "/api/get-groups") [] LoadDataSuccess LoadDataError
@@ -71,6 +55,18 @@ let changeHighlightedSuggestion modifyIndex defaultItem suggestions =
     | None -> defaultItem
     | x -> x
 
+let updateView fn =
+    // https://stackoverflow.com/a/34999925/1293659
+    Browser.window.setTimeout(
+        fun () ->
+            Browser.window.requestAnimationFrame(fun dt ->
+                fn()
+            )
+            |> ignore
+        , 0
+    )
+    |> ignore
+
 let update msg model =
     match msg, model with
     | LoadDataSuccess groups, Loading ->
@@ -103,7 +99,7 @@ let update msg model =
                             Suggestions =
                                 {
                                     Items = group.Persons
-                                    Highlighted = List.tryHead group.Persons
+                                    Highlighted = None
                                 }
                         }
             },
@@ -121,7 +117,7 @@ let update msg model =
             },
         Cmd.none
     | CloseDropdowns, Loaded data -> Loaded { data with GroupDropdownVisible = false }, Cmd.none
-    | SubmitGuess text, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
+    | SubmitGuess guessedPerson, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
         let currentPerson = PlayingModel.currentPerson playingModel
         let toastContent =
             Level.level []
@@ -153,26 +149,24 @@ let update msg model =
                                 Suggestions =
                                     { playingModel.Suggestions with
                                         Items = playingModel.Group.Persons
-                                        Highlighted = List.tryHead playingModel.Group.Persons
+                                        Highlighted = None
                                     }
                         }
                     Score = fn loadedModel.Score
                 }
 
-        match getGuessResult playingModel.Group.Persons currentPerson text with
-        | Correct ->
+        if guessedPerson = Some currentPerson then
             ReactToastify.toastify.toast.success toastContent
             |> ignore
 
             updateScore (fun s -> s + 1),
-            Cmd.none
-        | Incorrect _
-        | Skipped ->
+            Cmd.ofMsg ScrollHighlightedSuggestionIntoView
+        else
             ReactToastify.toastify.toast.error toastContent
             |> ignore
 
             updateScore (fun s -> s - 1),
-            Cmd.none
+            Cmd.ofMsg ScrollHighlightedSuggestionIntoView
     | UpdateGuess text, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
         let suggestions =
             playingModel.Group.Persons
@@ -197,7 +191,7 @@ let update msg model =
                             }
                     }
             },
-        Cmd.none
+        Cmd.ofMsg ScrollHighlightedSuggestionIntoView
     | HighlightPreviousSuggestion, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
         let highlighted =
             changeHighlightedSuggestion
@@ -233,10 +227,19 @@ let update msg model =
     | ScrollHighlightedSuggestionIntoView, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
         playingModel.Suggestions.Highlighted
         |> Option.bind (fun p -> List.tryFindIndex ((=)p) playingModel.Suggestions.Items)
-        |> Option.iter (fun idx ->
-            let el = Browser.document.querySelectorAll("#suggestions .dropdown-item").[idx]
-            el?scrollIntoView() |> ignore
-        )
+        |> function
+        | Some idx ->
+            updateView (fun () ->
+                let suggestions = Browser.document.querySelector("#suggestions")
+                let isScrollable = !!suggestions?scrollHeight <> !!suggestions?offsetHeight
+                if isScrollable then
+                    let el = suggestions.querySelectorAll(".dropdown-item").[idx]
+                    el?scrollIntoView(createObj [ "block" ==> "nearest" ]) |> ignore
+            )
+        | None ->
+            updateView (fun () ->
+                Browser.document.querySelector("#suggestions")?scrollTop <- 0.
+            )
 
         Loaded loadedModel,
         Cmd.none

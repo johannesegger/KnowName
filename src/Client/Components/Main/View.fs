@@ -63,15 +63,16 @@ let root model dispatch =
                         ]
                     ]
                     [
-                      yield Container.container [ Container.Props [ Style [ Padding "0.75rem"; Flex "0 1 auto" ] ] ]
+                      yield R.div [ Style [ Padding "0.75rem"; Flex "0 1 auto" ] ]
                         [ Level.level [ Level.Level.Option.Props [ Style [ Width "100%" ] ] ]
-                            [ Level.item []
+                            [ Level.item [ Level.Item.HasTextCentered ]
                                 [ R.div []
                                     [ Level.heading [] [ R.str "Gruppe" ]
-                                      R.div [ ClassName Level.Classes.Item.Title ] [ groupDropdown data dispatch ]
+                                      R.div [ ClassName Level.Classes.Item.Title; Style [ TextAlign "left" ] ]
+                                        [ groupDropdown data dispatch ]
                                     ]
                                 ]
-                              Level.item []
+                              Level.item [ Level.Item.HasTextCentered ]
                                 [
                                   match data.SelectedGroup with
                                   | NoSelection
@@ -80,15 +81,18 @@ let root model dispatch =
                                   | Selection ({ RemainingPersons = [] }) -> ()
                                   | Selection playingModel ->
                                       yield
-                                        R.form [ Action "javascript:void(0);"; OnSubmit (fun _ev -> playingModel.CurrentGuess |> SubmitGuess |> dispatch) ]
-                                        [ Input.text
-                                            [ Input.Placeholder "Name"
-                                              Input.OnChange (fun ev -> UpdateGuess !!ev.target?value |> dispatch)
-                                              Input.Value playingModel.CurrentGuess
-                                            ]
-                                        ]
+                                        R.div []
+                                          [ Level.heading [ Props [ Style [ Opacity 0 ] ] ] [ R.str "Name" ] // TODO &nbsp; would suffice
+                                            R.form [ Action "javascript:void(0);"; OnSubmit (fun _ev -> dispatch (SubmitGuess playingModel.Suggestions.Highlighted)) ]
+                                                [ Input.text
+                                                    [ Input.Placeholder "Name"
+                                                      Input.OnChange (fun ev -> UpdateGuess !!ev.target?value |> dispatch)
+                                                      Input.Value playingModel.CurrentGuess
+                                                    ]
+                                                ]
+                                          ]
                                 ]
-                              Level.item []
+                              Level.item [ Level.Item.HasTextCentered ]
                                 [ R.div
                                     [ OnDoubleClick (fun _ev -> dispatch ResetScore)
                                       ClassName BulmaClasses.Bulma.Properties.Interaction.IsUnselectable
@@ -139,7 +143,7 @@ let root model dispatch =
                                                     Dropdown.Item.a
                                                       [ Dropdown.Item.IsActive (playingModel.Suggestions.Highlighted = Some p)
                                                         Dropdown.Item.Props
-                                                          [ OnClick (fun _ev -> SubmitGuess p.DisplayName |> dispatch) ]
+                                                          [ OnClick (fun _ev -> SubmitGuess (Some p) |> dispatch) ]
                                                       ]
                                                       [ R.str p.DisplayName ]
                                             ]

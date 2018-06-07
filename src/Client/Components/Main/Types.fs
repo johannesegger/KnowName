@@ -58,7 +58,7 @@ type Msg =
     | LoadGroupSuccess of LoadedGroup
     | LoadGroupError of exn
     | CloseDropdowns
-    | SubmitGuess of string
+    | SubmitGuess of Person option
     | UpdateGuess of string
     | HighlightPreviousSuggestion
     | HighlightNextSuggestion
