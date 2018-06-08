@@ -268,13 +268,13 @@ let apiRouter (teacherImageDir, studentImageDir) = scope {
     )
 }
 
-let mainRouter teacherDir = scope {
+let mainRouter imageDirs = scope {
     forward "" browserRouter
-    forward "/api" (apiRouter teacherDir)
+    forward "/api" (apiRouter imageDirs)
 }
 
-let app teacherDir = application {
-    router (mainRouter teacherDir)
+let app imageDirs = application {
+    router (mainRouter imageDirs)
     url ("http://0.0.0.0:" + port.ToString() + "/")
     memory_cache
     use_static clientPath
