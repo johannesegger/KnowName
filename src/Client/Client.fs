@@ -12,6 +12,7 @@ open Elmish.HMR
 open Components.Main
 
 importAll "./Styles/main.sass"
+importAll "../../node_modules/font-awesome/scss/font-awesome.scss"
 
 Program.mkProgram State.init State.update View.root
 |> Program.withSubscription State.closeDropdownsOnDocumentClickSubscription
