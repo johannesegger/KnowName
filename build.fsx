@@ -90,8 +90,8 @@ Target "Bundle" (fun _ ->
   |> CopyFiles clientDir 
 )
 
-let dockerUser = "safe-template"
-let dockerImageName = "safe-template"
+let dockerUser = "htlvb"
+let dockerImageName = "know-name"
 
 let dockerFullName = sprintf "%s/%s" dockerUser dockerImageName
 
