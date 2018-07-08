@@ -92,16 +92,13 @@ Target.create "Bundle" (fun _ ->
   |> Shell.copyFiles clientDir 
 )
 
-let dockerUser = "htlvb"
-let dockerImageName = "know-name"
-
-let dockerFullName = sprintf "%s/%s" dockerUser dockerImageName
-
 Target.create "Docker" (fun _ ->
-  let buildArgs = sprintf "build -t %s ." dockerFullName
+  let imageName = "johannesegger/know-name"
+
+  let buildArgs = sprintf "build -t %s ." imageName
   run "docker" buildArgs "."
 
-  let tagArgs = sprintf "tag %s %s" dockerFullName dockerFullName
+  let tagArgs = sprintf "tag %s %s" imageName imageName
   run "docker" tagArgs "."
 )
 
