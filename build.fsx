@@ -1,65 +1,67 @@
-#r @"packages/build/FAKE/tools/FakeLib.dll"
+#load ".fake/build.fsx/intellisense.fsx"
 
 open System
 
-open Fake
+open Fake.Core
+open Fake.IO
+open Fake.IO.FileSystemOperators
+open Fake.IO.Globbing.Operators
+open Fake.Core.TargetOperators
 
-let serverPath = "./src/Server" |> FullName
-let clientPath = "./src/Client" |> FullName
-let deployDir = "./deploy" |> FullName
+let serverPath = "./src/Server" |> Path.getFullName
+let clientPath = "./src/Client" |> Path.getFullName
+let deployDir = "./deploy" |> Path.getFullName
 
 let platformTool tool winTool =
-  let tool = if isUnix then tool else winTool
+  let tool = if Environment.isUnix then tool else winTool
   tool
-  |> ProcessHelper.tryFindFileOnPath
+  |> Process.tryFindFileOnPath
   |> function Some t -> t | _ -> failwithf "%s not found" tool
 
 let nodeTool = platformTool "node" "node.exe"
 let yarnTool = platformTool "yarn" "yarn.cmd"
-
-let dotnetcliVersion = DotNetCli.GetDotNetSDKVersionFromGlobalJson()
-let mutable dotnetCli = "dotnet"
+let dotnetCliTool = platformTool "dotnet" "dotnet.exe"
 
 let run cmd args workingDir =
   let result =
-    ExecProcess (fun info ->
-      info.FileName <- cmd
-      info.WorkingDirectory <- workingDir
-      info.Arguments <- args) TimeSpan.MaxValue
+    Process.execSimple
+      (fun info ->
+        { info with
+            FileName = cmd
+            WorkingDirectory = workingDir
+            Arguments = args
+        })
+      TimeSpan.MaxValue
   if result <> 0 then failwithf "'%s %s' failed" cmd args
 
-Target "Clean" (fun _ -> 
-  CleanDirs [deployDir]
+Target.create "Clean" (fun _ ->
+  Shell.cleanDirs [ deployDir ]
 )
 
-Target "InstallDotNetCore" (fun _ ->
-  dotnetCli <- DotNetCli.InstallDotNetSDK dotnetcliVersion
-)
-
-Target "InstallClient" (fun _ ->
+Target.create "InstallClient" (fun _ ->
   printfn "Node version:"
   run nodeTool "--version" __SOURCE_DIRECTORY__
   printfn "Yarn version:"
   run yarnTool "--version" __SOURCE_DIRECTORY__
   run yarnTool "install --frozen-lockfile" __SOURCE_DIRECTORY__
-  run dotnetCli "restore" clientPath
+  run dotnetCliTool "restore" clientPath
 )
 
-Target "RestoreServer" (fun () -> 
-  run dotnetCli "restore" serverPath
+Target.create "RestoreServer" (fun _ -> 
+  run dotnetCliTool "restore" serverPath
 )
 
-Target "Build" (fun () ->
-  run dotnetCli "build" serverPath
-  run dotnetCli "fable webpack -- -p" clientPath
+Target.create "Build" (fun _ ->
+  run dotnetCliTool "build" serverPath
+  run dotnetCliTool "fable webpack -- -p" clientPath
 )
 
-Target "Run" (fun () ->
+Target.create "Run" (fun _ ->
   let server = async {
-    run dotnetCli "watch run" serverPath
+    run dotnetCliTool "watch run" serverPath
   }
   let client = async {
-    run dotnetCli "fable webpack-dev-server" clientPath
+    run dotnetCliTool "fable webpack-dev-server" clientPath
   }
   let browser = async {
     Threading.Thread.Sleep 5000
@@ -72,7 +74,7 @@ Target "Run" (fun () ->
   |> ignore
 )
 
-Target "Bundle" (fun _ ->
+Target.create "Bundle" (fun _ ->
   let serverDir = deployDir </> "Server"
   let clientDir = deployDir </> "Client"
   
@@ -80,14 +82,14 @@ Target "Bundle" (fun _ ->
   let imageDir  = clientDir </> "Images"
 
   let publishArgs = sprintf "publish -c Release -o \"%s\"" serverDir
-  run dotnetCli publishArgs serverPath
+  run dotnetCliTool publishArgs serverPath
 
-  !! "src/Client/public/**/*.*" |> CopyFiles publicDir
-  !! "src/Client/Images/**/*.*" |> CopyFiles imageDir
+  !! "src/Client/public/**/*.*" |> Shell.copyFiles publicDir
+  !! "src/Client/Images/**/*.*" |> Shell.copyFiles imageDir
 
   !! "src/Client/index.html"
   ++ "src/Client/*.css"
-  |> CopyFiles clientDir 
+  |> Shell.copyFiles clientDir 
 )
 
 let dockerUser = "htlvb"
@@ -95,7 +97,7 @@ let dockerImageName = "know-name"
 
 let dockerFullName = sprintf "%s/%s" dockerUser dockerImageName
 
-Target "Docker" (fun _ ->
+Target.create "Docker" (fun _ ->
   let buildArgs = sprintf "build -t %s ." dockerFullName
   run "docker" buildArgs "."
 
@@ -104,7 +106,6 @@ Target "Docker" (fun _ ->
 )
 
 "Clean"
-  ==> "InstallDotNetCore"
   ==> "InstallClient"
   ==> "Build"
   ==> "Bundle"
@@ -114,4 +115,4 @@ Target "Docker" (fun _ ->
   ==> "RestoreServer"
   ==> "Run"
 
-RunTargetOrDefault "Build"
+Target.runOrDefault "Build"
