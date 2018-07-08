@@ -4,5 +4,4 @@ group Server
     Mysql.Data
     Saturn
     Fable.JsonConverter
-    Microsoft.DotNet.Watcher.Tools
     SixLabors.ImageSharp

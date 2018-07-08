@@ -10,8 +10,6 @@ group Server
     nuget Saturn
     nuget Fable.JsonConverter
 
-    clitool Microsoft.DotNet.Watcher.Tools
-
 group Client
     storage: none
     source https://api.nuget.org/v3/index.json
