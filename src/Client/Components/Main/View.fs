@@ -104,7 +104,7 @@ let root model dispatch =
                                 ]
                             ]
                         ]
-                      yield Container.container [ Container.Props [ Style [ Display "flex"; Flex "1 1 auto" ] ] ]
+                      yield!
                         (match data.SelectedGroup with
                         | NoSelection -> []
                         | LoadingSelection group ->
@@ -120,32 +120,34 @@ let root model dispatch =
                                 [ RawGroup.toString group |> sprintf "Fehler beim Laden der Gruppe %s" |> R.str ]
                             ]
                         | Selection ({ RemainingPersons = currentPerson :: _ } as playingModel) ->
-                            [ Tile.ancestor [ Tile.Props [ Style [ MinHeight "auto"; MaxHeight "100%"; Margin "0" ] ] ]
-                                [ Tile.parent [ Tile.Size Tile.Is8; Tile.Props [ Style [ MinHeight "auto" ] ] ]
-                                    [ Tile.child [ Tile.Props [ Style [ MinHeight "auto" ] ] ]
-                                        [ Box.box' [ Props [ Style [ Height "100%" ] ] ]
-                                            [ Image.image [ Image.Props [ Style [ Height "100%" ] ] ]
-                                                [ R.img
-                                                    [ Src currentPerson.ImageUrl
-                                                      Style [ MaxHeight "100%"; ObjectFit "contain" ]
+                            [ Container.container [ Container.Props [ Style [ Display "flex"; Flex "1 1 auto" ] ] ]
+                                [ Tile.ancestor [ Tile.Props [ Style [ MinHeight "auto"; MaxHeight "100%"; Margin "0" ] ] ]
+                                    [ Tile.parent [ Tile.Size Tile.Is8; Tile.Props [ Style [ MinHeight "auto" ] ] ]
+                                        [ Tile.child [ Tile.Props [ Style [ MinHeight "auto" ] ] ]
+                                            [ Box.box' [ Props [ Style [ Height "100%" ] ] ]
+                                                [ Image.image [ Image.Props [ Style [ Height "100%" ] ] ]
+                                                    [ R.img
+                                                        [ Src currentPerson.ImageUrl
+                                                          Style [ MaxHeight "100%"; ObjectFit "contain" ]
+                                                        ]
                                                     ]
                                                 ]
                                             ]
                                         ]
-                                    ]
-                                  Tile.parent [ Tile.Props [ Style [ MinHeight "auto" ] ] ]
-                                    [
-                                      Tile.child [ Tile.Props [ Style [ Height "100%" ] ] ]
-                                        [ Box.box' [ Common.Props [ Id "suggestions"; Style [ Height "100%"; OverflowY "auto" ] ] ]
-                                            [
-                                                for p in playingModel.Suggestions.Items do
-                                                yield
-                                                    Dropdown.Item.a
-                                                      [ Dropdown.Item.IsActive (playingModel.Suggestions.Highlighted = Some p)
-                                                        Dropdown.Item.Props
-                                                          [ OnClick (fun _ev -> SubmitGuess (Some p) |> dispatch) ]
-                                                      ]
-                                                      [ R.str p.DisplayName ]
+                                      Tile.parent [ Tile.Props [ Style [ MinHeight "auto" ] ] ]
+                                        [
+                                          Tile.child [ Tile.Props [ Style [ Height "100%" ] ] ]
+                                            [ Box.box' [ Common.Props [ Id "suggestions"; Style [ Height "100%"; OverflowY "auto" ] ] ]
+                                                [
+                                                    for p in playingModel.Suggestions.Items do
+                                                    yield
+                                                        Dropdown.Item.a
+                                                          [ Dropdown.Item.IsActive (playingModel.Suggestions.Highlighted = Some p)
+                                                            Dropdown.Item.Props
+                                                              [ OnClick (fun _ev -> SubmitGuess (Some p) |> dispatch) ]
+                                                          ]
+                                                          [ R.str p.DisplayName ]
+                                                ]
                                             ]
                                         ]
                                     ]
