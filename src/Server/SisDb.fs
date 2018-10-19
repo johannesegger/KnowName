@@ -16,7 +16,7 @@ type private SisSqlDataProvider =
         ResolutionPath = ResolutionPath,
         UseOptionTypes = true>
 let private ctx =
-    let connectionString = Environment.GetEnvironmentVariable "DB_CONNECTION_STRING"
+    let connectionString = Environment.GetEnvironmentVariable "SISDB_CONNECTION_STRING"
     SisSqlDataProvider.GetDataContext connectionString
 
 let sis2 = ctx.Sis2

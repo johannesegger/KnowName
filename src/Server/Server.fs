@@ -290,10 +290,10 @@ let main argv =
         | x when String.IsNullOrEmpty x -> None
         | x -> Some x
 
-    match tryGetEnvVar "TEACHER_IMAGES_PATH", tryGetEnvVar "STUDENT_IMAGES_PATH" with
+    match tryGetEnvVar "TEACHER_IMAGE_DIR", tryGetEnvVar "STUDENT_IMAGE_DIR" with
     | Some teacherImageDir, Some studentImageDir ->
         app (teacherImageDir, studentImageDir) |> run
         0
     | _ ->
-        eprintfn "ERROR: environment variables `TEACHER_IMAGES_PATH` and `STUDENT_IMAGES_PATH` not set"
+        eprintfn "ERROR: environment variables `TEACHER_IMAGE_DIR` and `STUDENT_IMAGE_DIR` not set"
         1
