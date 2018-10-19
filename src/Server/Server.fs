@@ -62,8 +62,8 @@ let tryGetTeacherImage dir (teacher: Teacher) =
     |> tryGetFileInDir dir
 
 let tryGetStudentImage dir student =
-    sprintf "%s_%s_%s_%s" (ClassName.getRawClassName student.ClassName) student.LastName student.FirstName student.Id
-    |> tryGetFileInDir dir
+    sprintf "%s_%s" student.LastName student.FirstName
+    |> tryGetFileInDir (dir @@ student.ClassName)
 
 let getTeachers imageDir = task {
     let! teachers =
