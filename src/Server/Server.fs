@@ -62,8 +62,9 @@ let tryGetTeacherImage dir (teacher: Teacher) =
     |> tryGetFileInDir dir
 
 let tryGetStudentImage dir student =
+    let classDir = Path.Combine(dir, student.ClassName)
     sprintf "%s_%s" student.LastName student.FirstName
-    |> tryGetFileInDir (dir @@ student.ClassName)
+    |> tryGetFileInDir classDir
 
 let getTeachers imageDir = task {
     let! teachers =
