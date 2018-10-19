@@ -18,7 +18,7 @@ open Shared
 open SixLabors.Primitives
 open Thoth.Json.Giraffe
 
-let clientPath = Path.Combine("..","Client") |> Path.GetFullPath
+let publicPath = Path.GetFullPath "../Client/public"
 
 let port = 8085
 
@@ -255,21 +255,21 @@ let main argv =
     let studentImageDir = getEnvVarOrFail "STUDENT_IMAGE_DIR"
 
     let apiRouter = router {
-        get "/get-groups" (fun next ctx ->
+        get "/api/get-groups" (fun next ctx ->
             task {
                 let! data = getGroups()
                 return! Successful.OK data next ctx
             }
         )
 
-        get "/get-teachers" (fun next ctx ->
+        get "/api/get-teachers" (fun next ctx ->
             task {
                 let! data = getTeachers teacherImageDir
                 return! Successful.OK data next ctx
             }
         )
 
-        getf "/get-teacher-image/%s" (fun teacherId next ctx ->
+        getf "/api/get-teacher-image/%s" (fun teacherId next ctx ->
             task {
                 let! imagePath = getTeacherImage teacherImageDir teacherId
                 let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
@@ -278,14 +278,14 @@ let main argv =
             }
         )
 
-        getf "/get-students/%s" (fun className next ctx ->
+        getf "/api/get-students/%s" (fun className next ctx ->
             task {
                 let! data = getStudents studentImageDir className
                 return! Successful.OK data next ctx
             }
         )
 
-        getf "/get-student-image/%s" (fun studentId next ctx ->
+        getf "/api/get-student-image/%s" (fun studentId next ctx ->
             task {
                 let! imagePath = getStudentImage studentImageDir studentId
                 let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
@@ -295,15 +295,10 @@ let main argv =
         )
     }
 
-    let mainRouter = router {
-        forward "" browserRouter
-        forward "/api" apiRouter
-    }
-
     let app = application {
-        use_router mainRouter
+        use_router apiRouter
         memory_cache
-        use_static clientPath
+        use_static publicPath
         service_config configureSerialization
         use_gzip
         host_config(fun host ->
