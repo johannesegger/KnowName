@@ -27,14 +27,14 @@ type [<StringEnum>] [<RequireQualifiedAccess>] ToastType =
 type ToastContent =
     U2<React.ReactNode, obj>
 
-[<RequireQualifiedAccess; CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module ToastContent =
-    let ``ofReact.ReactNode`` v: ToastContent = v |> U2.Case1
-    let ``isReact.ReactNode`` (v: ToastContent) = match v with U2.Case1 _ -> true | _ -> false
-    let ``asReact.ReactNode`` (v: ToastContent) = match v with U2.Case1 o -> Some o | _ -> None
-    let ofCase2 v: ToastContent = v |> U2.Case2
-    let isCase2 (v: ToastContent) = match v with U2.Case2 _ -> true | _ -> false
-    let asCase2 (v: ToastContent) = match v with U2.Case2 o -> Some o | _ -> None
+// [<RequireQualifiedAccess; CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+// module ToastContent =
+//     let ``ofReact.ReactNode`` v: ToastContent = v |> U2.Case1
+//     let ``isReact.ReactNode`` (v: ToastContent) = match v with U2.Case1 _ -> true | _ -> false
+//     let ``asReact.ReactNode`` (v: ToastContent) = match v with U2.Case1 o -> Some o | _ -> None
+//     let ofCase2 v: ToastContent = v |> U2.Case2
+//     let isCase2 (v: ToastContent) = match v with U2.Case2 _ -> true | _ -> false
+//     let asCase2 (v: ToastContent) = match v with U2.Case2 o -> Some o | _ -> None
 
 type [<AllowNullLiteral>] styleProps =
     /// Set the default toast width. 

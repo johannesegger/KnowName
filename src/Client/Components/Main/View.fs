@@ -95,7 +95,7 @@ let root model dispatch =
                               Level.item [ Level.Item.HasTextCentered ]
                                 [ R.div
                                     [ OnDoubleClick (fun _ev -> dispatch ResetScore)
-                                      ClassName BulmaClasses.Bulma.Properties.Interaction.IsUnselectable
+                                      ClassName Modifier.Classes.Helpers.IsUnselectable
                                     ]
                                     [ Level.heading [] [ R.str "Punkte" ]
                                       Level.title [ Props [ Style (if data.Score >= 0 then [ Color "lightgreen" ] else [ Color "red" ]) ] ]

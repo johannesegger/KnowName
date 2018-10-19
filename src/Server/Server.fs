@@ -1,10 +1,14 @@
 open System
 open System.IO
+open System.Net
 open System.Net.Mime
+open FSharp.Control.Tasks.V2.ContextInsensitive
 open FSharp.Data.Sql
 open Giraffe
 open Giraffe.Serialization
+open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Http
+open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Net.Http.Headers
 open Saturn
@@ -12,16 +16,20 @@ open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Processing
 open Shared
 open SixLabors.Primitives
+open Thoth.Json.Giraffe
 
 let clientPath = Path.Combine("..","Client") |> Path.GetFullPath
 
-let port = 8085us
+let port = 8085
 
 let config (services:IServiceCollection) =
     let fableJsonSettings = Newtonsoft.Json.JsonSerializerSettings()
     fableJsonSettings.Converters.Add(Fable.JsonConverter())
     services.AddSingleton<IJsonSerializer>(NewtonsoftJsonSerializer fableJsonSettings) |> ignore
     services
+
+let configureSerialization (services:IServiceCollection) =
+    services.AddSingleton<IJsonSerializer>(ThothSerializer())
 
 let getGroups() = task {
     let! classNames =
@@ -54,8 +62,10 @@ type Student = {
 }
 
 let tryGetFileInDir dir fileName =
-    Directory.EnumerateFiles dir
-    |> Seq.tryFind (fun f -> Path.GetFileNameWithoutExtension(f).Equals(fileName, StringComparison.InvariantCultureIgnoreCase))
+    try
+        Directory.EnumerateFiles dir
+        |> Seq.tryFind (fun f -> Path.GetFileNameWithoutExtension(f).Equals(fileName, StringComparison.InvariantCultureIgnoreCase))
+    with :? DirectoryNotFoundException -> None
 
 let tryGetTeacherImage dir (teacher: Teacher) =
     sprintf "%s_%s" teacher.LastName teacher.FirstName
@@ -183,7 +193,7 @@ let getStudentImage imageDir studentId = task {
         |> Option.bind (tryGetStudentImage imageDir)
 }
 
-let browserRouter = scope {
+let browserRouter = router {
     get "/" (htmlFile (Path.Combine(clientPath, "index.html")))
 }
 
@@ -228,72 +238,98 @@ let tryGetQueryValue key (request: HttpRequest) =
     | (true, value) -> Some value.[0]
     | _ -> None
 
-let apiRouter (teacherImageDir, studentImageDir) = scope {
-    get "/get-groups" (fun next ctx ->
-        task {
-            let! data = getGroups()
-            return! Successful.OK data next ctx
-        }
-    )
+let getEnvVar name =
+    Environment.GetEnvironmentVariable name
 
-    get "/get-teachers" (fun next ctx ->
-        task {
-            let! data = getTeachers teacherImageDir
-            return! Successful.OK data next ctx
-        }
-    )
-
-    getf "/get-teacher-image/%s" (fun teacherId next ctx ->
-        task {
-            let! imagePath = getTeacherImage teacherImageDir teacherId
-            let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
-            let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
-            return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
-        }
-    )
-
-    getf "/get-students/%s" (fun className next ctx ->
-        task {
-            let! data = getStudents studentImageDir className
-            return! Successful.OK data next ctx
-        }
-    )
-
-    getf "/get-student-image/%s" (fun studentId next ctx ->
-        task {
-            let! imagePath = getStudentImage studentImageDir studentId
-            let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
-            let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
-            return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
-        }
-    )
-}
-
-let mainRouter imageDirs = scope {
-    forward "" browserRouter
-    forward "/api" (apiRouter imageDirs)
-}
-
-let app imageDirs = application {
-    router (mainRouter imageDirs)
-    url ("http://0.0.0.0:" + port.ToString() + "/")
-    memory_cache
-    use_static clientPath
-    service_config config
-    use_gzip
-}
+let getEnvVarOrFail name =
+    let value = getEnvVar name
+    if isNull value
+    then failwithf "Environment variable \"%s\" not set" name
+    else value
 
 [<EntryPoint>]
 let main argv =
-    let tryGetEnvVar key =
-        match Environment.GetEnvironmentVariable key with
-        | x when String.IsNullOrEmpty x -> None
-        | x -> Some x
+    let sslCertPath = getEnvVar "SSL_CERT_PATH"
+    let sslCertPassword = getEnvVar "SSL_CERT_PASSWORD"
+    let teacherImageDir = getEnvVarOrFail "TEACHER_IMAGE_DIR"
+    let studentImageDir = getEnvVarOrFail "STUDENT_IMAGE_DIR"
 
-    match tryGetEnvVar "TEACHER_IMAGE_DIR", tryGetEnvVar "STUDENT_IMAGE_DIR" with
-    | Some teacherImageDir, Some studentImageDir ->
-        app (teacherImageDir, studentImageDir) |> run
-        0
-    | _ ->
-        eprintfn "ERROR: environment variables `TEACHER_IMAGE_DIR` and `STUDENT_IMAGE_DIR` not set"
-        1
+    let apiRouter = router {
+        get "/get-groups" (fun next ctx ->
+            task {
+                let! data = getGroups()
+                return! Successful.OK data next ctx
+            }
+        )
+
+        get "/get-teachers" (fun next ctx ->
+            task {
+                let! data = getTeachers teacherImageDir
+                return! Successful.OK data next ctx
+            }
+        )
+
+        getf "/get-teacher-image/%s" (fun teacherId next ctx ->
+            task {
+                let! imagePath = getTeacherImage teacherImageDir teacherId
+                let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
+                let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
+                return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
+            }
+        )
+
+        getf "/get-students/%s" (fun className next ctx ->
+            task {
+                let! data = getStudents studentImageDir className
+                return! Successful.OK data next ctx
+            }
+        )
+
+        getf "/get-student-image/%s" (fun studentId next ctx ->
+            task {
+                let! imagePath = getStudentImage studentImageDir studentId
+                let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
+                let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
+                return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
+            }
+        )
+    }
+
+    let mainRouter = router {
+        forward "" browserRouter
+        forward "/api" apiRouter
+    }
+
+    let app = application {
+        use_router mainRouter
+        memory_cache
+        use_static clientPath
+        service_config configureSerialization
+        use_gzip
+        host_config(fun host ->
+            host.UseKestrel(fun options ->
+                options.Listen(IPAddress.Any, port, fun listenOptions ->
+#if DEBUG
+                    listenOptions.UseHttps() |> ignore
+#else
+                    listenOptions.UseHttps(sslCertPath, sslCertPassword) |> ignore
+#endif
+                )
+            )
+        )
+        app_config(fun app ->
+#if DEBUG
+            app.UseDeveloperExceptionPage()
+#else
+            // app.UseExceptionHandler("/Error")
+            app.UseHsts()
+#endif
+        )
+        service_config (fun services ->
+            services.AddHttpsRedirection(fun options ->
+                options.HttpsPort <- Nullable<_> 443
+            )
+        )
+    }
+    run app
+    0

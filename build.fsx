@@ -1,115 +1,127 @@
-#load ".fake/build.fsx/intellisense.fsx"
+#r "paket: groupref build //"
+#load "./.fake/build.fsx/intellisense.fsx"
+
+#if !FAKE
+#r "netstandard"
+#r "Facades/netstandard" // https://github.com/ionide/ionide-vscode-fsharp/issues/839#issuecomment-396296095
+#endif
 
 open System
 
 open Fake.Core
+open Fake.DotNet
 open Fake.IO
 open Fake.IO.FileSystemOperators
 open Fake.IO.Globbing.Operators
 open Fake.Core.TargetOperators
 
-let serverPath = "./src/Server" |> Path.getFullName
-let clientPath = "./src/Client" |> Path.getFullName
-let deployDir = "./deploy" |> Path.getFullName
+let serverPath = Path.getFullName "./src/Server"
+let clientPath = Path.getFullName "./src/Client"
+let deployDir = Path.getFullName "./deploy"
 
 let platformTool tool winTool =
-  let tool = if Environment.isUnix then tool else winTool
-  tool
-  |> Process.tryFindFileOnPath
-  |> function Some t -> t | _ -> failwithf "%s not found" tool
+    let tool = if Environment.isUnix then tool else winTool
+    match ProcessUtils.tryFindFileOnPath tool with
+    | Some t -> t
+    | _ ->
+        let errorMsg =
+            tool + " was not found in path. " +
+            "Please install it and make sure it's available from your path. " +
+            "See https://safe-stack.github.io/docs/quickstart/#install-pre-requisites for more info"
+        failwith errorMsg
 
 let nodeTool = platformTool "node" "node.exe"
 let yarnTool = platformTool "yarn" "yarn.cmd"
-let dotnetCliTool = platformTool "dotnet" "dotnet.exe"
 
-let run cmd args workingDir =
-  let result =
-    Process.execSimple
-      (fun info ->
-        { info with
-            FileName = cmd
-            WorkingDirectory = workingDir
-            Arguments = args
-        })
-      TimeSpan.MaxValue
-  if result <> 0 then failwithf "'%s %s' failed" cmd args
+let runTool cmd args workingDir =
+    CreateProcess.fromRawCommand cmd args
+    |> CreateProcess.ensureExitCode // will make sure to throw on error
+    |> CreateProcess.withWorkingDirectory workingDir
+    |> Proc.run
+    |> ignore
+
+let runDotNet cmd workingDir =
+    let result =
+        DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd ""
+    if result.ExitCode <> 0 then failwithf "'dotnet %s' failed in %s" cmd workingDir
+
+let openBrowser url =
+    ShellCommand url
+    |> CreateProcess.fromCommand
+    |> CreateProcess.ensureExitCode // will make sure to throw on error
+    |> Proc.run
+    |> ignore
 
 Target.create "Clean" (fun _ ->
-  Shell.cleanDirs [ deployDir ]
+    Shell.cleanDirs [ deployDir ]
 )
 
 Target.create "InstallClient" (fun _ ->
-  printfn "Node version:"
-  run nodeTool "--version" __SOURCE_DIRECTORY__
-  printfn "Yarn version:"
-  run yarnTool "--version" __SOURCE_DIRECTORY__
-  run yarnTool "install --frozen-lockfile" __SOURCE_DIRECTORY__
-  run dotnetCliTool "restore" clientPath
+    printfn "Node version:"
+    runTool nodeTool [ "--version" ] __SOURCE_DIRECTORY__
+    printfn "Yarn version:"
+    runTool yarnTool [ "--version" ] __SOURCE_DIRECTORY__
+    runTool yarnTool ["install"; "--frozen-lockfile" ] __SOURCE_DIRECTORY__
+    runDotNet "restore" clientPath
 )
 
 Target.create "RestoreServer" (fun _ -> 
-  run dotnetCliTool "restore" serverPath
+    runDotNet "restore" serverPath
 )
 
 Target.create "Build" (fun _ ->
-  run dotnetCliTool "build" serverPath
-  run dotnetCliTool "fable webpack -- -p" clientPath
+    runDotNet "build" serverPath
+    runDotNet "fable webpack -- --config src/Client/webpack.config.js -p" clientPath
 )
 
 Target.create "Run" (fun _ ->
-  let server = async {
-    run dotnetCliTool "watch run" serverPath
-  }
-  let client = async {
-    run dotnetCliTool "fable webpack-dev-server" clientPath
-  }
-  let browser = async {
-    Threading.Thread.Sleep 5000
-    Diagnostics.Process.Start "http://localhost:8080" |> ignore
-  }
+    let server = async {
+        runDotNet "watch run" serverPath
+    }
+    let client = async {
+        runDotNet "fable webpack-dev-server -- --config src/Client/webpack.config.js" clientPath
+    }
+    let browser = async {
+        do! Async.Sleep 5000
+        openBrowser "http://localhost:8080"
+    }
 
-  [ server; client; browser]
-  |> Async.Parallel
-  |> Async.RunSynchronously
-  |> ignore
+    [ server; client; browser]
+    |> Async.Parallel
+    |> Async.RunSynchronously
+    |> ignore
 )
 
 Target.create "Bundle" (fun _ ->
-  let serverDir = deployDir </> "Server"
-  let clientDir = deployDir </> "Client"
-  
-  let publicDir = clientDir </> "public"
-  let imageDir  = clientDir </> "Images"
+    let serverDir = Path.combine deployDir "Server"
+    let clientDir = Path.combine deployDir "Client"
+    let publicDir = Path.combine clientDir "public"
 
-  let publishArgs = sprintf "publish -c Release -o \"%s\"" serverDir
-  run dotnetCliTool publishArgs serverPath
+    let publishArgs = sprintf "publish -c Release -o \"%s\"" serverDir
+    runDotNet publishArgs serverPath
 
-  !! "src/Client/public/**/*.*" |> Shell.copyFiles publicDir
-  !! "src/Client/Images/**/*.*" |> Shell.copyFiles imageDir
-
-  !! "src/Client/index.html"
-  ++ "src/Client/*.css"
-  |> Shell.copyFiles clientDir 
+    Shell.copyDir publicDir "src/Client/public" FileFilter.allFiles
 )
 
 Target.create "Docker" (fun _ ->
   let imageName = "johannesegger/know-name"
 
-  let buildArgs = sprintf "build -t %s ." imageName
-  run "docker" buildArgs "."
+  let buildArgs = [ "build"; "-t"; imageName; "." ]
+  runTool "docker" buildArgs "."
 
-  let tagArgs = sprintf "tag %s %s" imageName imageName
-  run "docker" tagArgs "."
+  let tagArgs = [ "tag"; imageName; imageName ]
+  runTool "docker" tagArgs "."
 )
 
 "Clean"
-  ==> "InstallClient"
-  ==> "Build"
-  ==> "Bundle"
-  ==> "Docker"
+    ==> "InstallClient"
+    ==> "Build"
+    ==> "Bundle"
+    ==> "Docker"
 
-"InstallClient"
-  ==> "RestoreServer"
-  ==> "Run"
+"Clean"
+    ==> "InstallClient"
+    ==> "RestoreServer"
+    ==> "Run"
 
 Target.runOrDefault "Build"

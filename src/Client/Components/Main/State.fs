@@ -14,17 +14,17 @@ module R = Fable.Helpers.React
 
 let init() =
     Loading,
-    Cmd.ofPromise (fetchAs<RawGroup list> "/api/get-groups") [] LoadDataSuccess LoadDataError
+    Cmd.ofPromise (fetchAs<RawGroup list> "/api/get-groups" RawGroup.listDecoder) [] LoadDataSuccess LoadDataError
 
 let loadGroup = function
     | Teachers ->
         promise {
-            let! teachers = fetchAs<Person list> "/api/get-teachers" []
+            let! teachers = fetchAs<Person list> "/api/get-teachers" Person.listDecoder []
             return { Group = Teachers; Persons = teachers }
         }
     | Students className ->
         promise {
-            let! students = fetchAs<Person list> (sprintf "/api/get-students/%s" className) []
+            let! students = fetchAs<Person list> (sprintf "/api/get-students/%s" className) Person.listDecoder []
             return { Group = Students className; Persons = students }
         }
 
@@ -250,7 +250,7 @@ let update msg model =
             },
         Cmd.none
     | message, model ->
-        eprintfn "Model and message don't match:\nMessage: %A\nModel: %A" message model
+        printfn "Model and message don't match:\nMessage: %A\nModel: %A" message model
         model, Cmd.none
 
 let closeDropdownsOnDocumentClickSubscription _model =
