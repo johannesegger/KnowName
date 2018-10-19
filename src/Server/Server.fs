@@ -193,10 +193,6 @@ let getStudentImage imageDir studentId = task {
         |> Option.bind (tryGetStudentImage imageDir)
 }
 
-let browserRouter = router {
-    get "/" (htmlFile (Path.Combine(clientPath, "index.html")))
-}
-
 let resizeFile (maxWidth, maxHeight) (path: string) =
     let limit value max =
         if value > max
