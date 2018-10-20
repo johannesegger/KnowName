@@ -20,7 +20,8 @@ open Thoth.Json.Giraffe
 
 let publicPath = Path.GetFullPath "../Client/public"
 
-let port = 8085
+let httpPort = 8085
+let httpsPort = 8086
 
 let config (services:IServiceCollection) =
     let fableJsonSettings = Newtonsoft.Json.JsonSerializerSettings()
@@ -299,7 +300,8 @@ let main argv =
         use_gzip
         host_config(fun host ->
             host.UseKestrel(fun options ->
-                options.Listen(IPAddress.Any, port, fun listenOptions ->
+                options.ListenAnyIP httpPort
+                options.ListenAnyIP(httpsPort, fun listenOptions ->
 #if DEBUG
                     listenOptions.UseHttps() |> ignore
 #else
@@ -318,7 +320,7 @@ let main argv =
         )
         service_config (fun services ->
             services.AddHttpsRedirection(fun options ->
-                options.HttpsPort <- Nullable<_> 443
+                options.HttpsPort <- Nullable<_> httpsPort
             )
         )
     }
