@@ -23,12 +23,6 @@ let publicPath = Path.GetFullPath "../Client/public"
 let httpPort = 8085
 let httpsPort = 8086
 
-let config (services:IServiceCollection) =
-    let fableJsonSettings = Newtonsoft.Json.JsonSerializerSettings()
-    fableJsonSettings.Converters.Add(Fable.JsonConverter())
-    services.AddSingleton<IJsonSerializer>(NewtonsoftJsonSerializer fableJsonSettings) |> ignore
-    services
-
 let configureSerialization (services:IServiceCollection) =
     services.AddSingleton<IJsonSerializer>(ThothSerializer())
 
