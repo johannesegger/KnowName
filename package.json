@@ -11,8 +11,6 @@
     "react-autocomplete": "1.8.1",
     "react-bootstrap": "0.32.4",
     "react-dom": "16.5.2",
-    "react-popper": "1.0.2",
-    "react-toastify": "4.4.0",
     "whatwg-fetch": "3.0.0"
   },
   "devDependencies": {

@@ -8,3 +8,4 @@ dotnet-fable
 Fulma
 Fulma.Extensions
 Thoth.Json
+Thoth.Elmish.Toast

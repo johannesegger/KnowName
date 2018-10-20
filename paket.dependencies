@@ -25,10 +25,12 @@ group Client
     nuget Fable.React
     nuget Fulma
     nuget Fulma.Extensions
+    nuget Thoth.Elmish.Toast
 
     clitool dotnet-fable
 
 group Build
+    storage: none
     source https://api.nuget.org/v3/index.json
 
     nuget FSharp.Core 4.3.4 // https://github.com/fsharp/FAKE/issues/2001

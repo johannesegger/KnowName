@@ -9,6 +9,7 @@ open Fable.Import
 open Fable.PowerPack
 open Fable.PowerPack.Fetch
 open Fulma
+open Thoth.Elmish
 open Shared
 module R = Fable.Helpers.React
 
@@ -67,7 +68,7 @@ let updateView fn =
     )
     |> ignore
 
-let update msg model =
+let rec update msg model =
     match msg, model with
     | LoadDataSuccess groups, Loading ->
         Loaded
@@ -118,20 +119,6 @@ let update msg model =
         Cmd.none
     | CloseDropdowns, Loaded data -> Loaded { data with GroupDropdownVisible = false }, Cmd.none
     | SubmitGuess guessedPerson, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
-        let currentPerson = PlayingModel.currentPerson playingModel
-        let toastContent =
-            Level.level []
-                [ Level.left []
-                    [ Level.item []
-                        [ R.img [ Src currentPerson.ImageUrl; Style [ Height "50px" ] ] ]
-                      Level.item []
-                        [ R.str currentPerson.DisplayName ]
-                    ]
-                ]
-            |> Fable.Import.React.ReactChild.Case1
-            |> Fable.Import.React.ReactNode.Case1
-            |> U2.Case1
-
         let remainingPersons =
             match playingModel.RemainingPersons with
             | []
@@ -155,18 +142,21 @@ let update msg model =
                     Score = fn loadedModel.Score
                 }
 
-        if guessedPerson = Some currentPerson then
-            ReactToastify.toastify.toast.success toastContent
-            |> ignore
+        let currentPerson = PlayingModel.currentPerson playingModel
+        let toastContent =
+            R.img [ Src currentPerson.ImageUrl; Style [ Height "50px" ] ]
 
-            updateScore (fun s -> s + 1),
-            Cmd.ofMsg ScrollHighlightedSuggestionIntoView
-        else
-            ReactToastify.toastify.toast.error toastContent
-            |> ignore
-
-            updateScore (fun s -> s - 1),
-            Cmd.ofMsg ScrollHighlightedSuggestionIntoView
+        let state, cmd =
+            let toast =
+                Toast.toast currentPerson.DisplayName
+                |> Toast.icon toastContent
+            if guessedPerson = Some currentPerson then
+                updateScore (fun s -> s + 1), Toast.success toast
+            else
+                updateScore (fun s -> s - 1), Toast.error toast
+        let (state', cmd') = update ScrollHighlightedSuggestionIntoView state
+        state', Cmd.batch [ cmd; cmd' ]
+        
     | UpdateGuess text, Loaded ({ SelectedGroup = Selection playingModel } as loadedModel) ->
         let suggestions =
             playingModel.Group.Persons

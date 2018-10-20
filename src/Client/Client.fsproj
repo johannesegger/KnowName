@@ -6,8 +6,7 @@
   <ItemGroup>
     <Compile Include="..\Shared\Shared.fs" />
     <Compile Include="ReactAutocomplete.fs" />
-    <Compile Include="ReactPopper.fs" />
-    <Compile Include="ReactToastify.fs" />
+    <Compile Include="Toast.fs" />
     <Compile Include="Components\Main\Types.fs" />
     <Compile Include="Components\Main\State.fs" />
     <Compile Include="Components\Main\View.fs" />

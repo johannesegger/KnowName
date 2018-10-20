@@ -88,6 +88,7 @@ let root model dispatch =
                                                     [ Input.Placeholder "Name"
                                                       Input.OnChange (fun ev -> UpdateGuess !!ev.target?value |> dispatch)
                                                       Input.Value playingModel.CurrentGuess
+                                                      Input.Props [ AutoComplete "new-password" ]
                                                     ]
                                                 ]
                                           ]
@@ -160,9 +161,4 @@ let root model dispatch =
                         )
                     ]
             | LoadError _e -> R.str "Fehler beim Laden der Daten."
-
-          let options = createEmpty<ReactToastify.ToastContainerProps>
-          options.autoClose <- U2.Case1 5000. |> Some
-          options.position <- Some "bottom-left"
-          yield ReactToastify.toastContainer options
         ]
