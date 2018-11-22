@@ -3,41 +3,43 @@ var webpack = require("webpack");
 var MinifyPlugin = require("terser-webpack-plugin");
 
 function resolve(filePath) {
-  return path.join(__dirname, filePath)
+    return path.join(__dirname, filePath)
 }
 
 var CONFIG = {
-  fsharpEntry: {
-      "app": [
-          "whatwg-fetch",
-          "@babel/polyfill",
-          resolve("./Client.fsproj")
-      ]
-  },
-  devServerProxy: {
-      '/api/*': {
-          target: 'http://localhost:' + (process.env.SUAVE_FABLE_PORT || "8085"),
-          changeOrigin: true
-      }
-  },
-  historyApiFallback: {
-      index: resolve("./index.html")
-  },
-  contentBase: resolve("./public"),
-  // Use babel-preset-env to generate JS compatible with most-used browsers.
-  // More info at https://github.com/babel/babel/blob/master/packages/babel-preset-env/README.md
-  babel: {
-      presets: [
-          ["@babel/preset-env", {
-              "targets": {
-                  "browsers": ["last 2 versions"]
-              },
-              "modules": false,
-              "useBuiltIns": "usage",
-          }]
-      ],
-      plugins: ["@babel/plugin-transform-runtime"]
-  }
+    fsharpEntry: {
+        "app": [
+            "whatwg-fetch",
+            "@babel/polyfill",
+            resolve("./Client.fsproj")
+        ]
+    },
+    devServerProxy: {
+        '/api/*': {
+            target: 'http://localhost:' + (process.env.SUAVE_FABLE_PORT || "8085"),
+            changeOrigin: true
+        }
+    },
+    historyApiFallback: {
+        index: resolve("./index.html")
+    },
+    contentBase: resolve("./public"),
+    // Use babel-preset-env to generate JS compatible with most-used browsers.
+    // More info at https://github.com/babel/babel/blob/master/packages/babel-preset-env/README.md
+    babel: {
+        presets: [
+            ["@babel/preset-env", {
+                "targets": {
+                    "browsers": [ ">0.25%" ]
+                },
+                "modules": false,
+                "useBuiltIns": "usage",
+            }]
+        ],
+        plugins: [
+            "@babel/plugin-transform-runtime"
+        ]
+    }
 }
 
 var isProduction = process.argv.indexOf("-p") >= 0;
