@@ -1,11 +1,11 @@
 group Server
-FSharp.Core
-SQLProvider
-Mysql.Data
-Saturn
-Fable.JsonConverter
-SixLabors.ImageSharp
-Thoth.Json.Net
-Thoth.Json.Giraffe
-Microsoft.AspNetCore.HttpsPolicy
-Microsoft.AspNetCore.Server.Kestrel
+    FSharp.Core
+    MySqlConnector
+    Fable.JsonConverter
+    SixLabors.ImageSharp
+    Thoth.Json.Net
+    Thoth.Json.Giraffe
+    Microsoft.AspNetCore.HttpsPolicy
+    Microsoft.AspNetCore.Server.Kestrel
+    Microsoft.AspNetCore
+    Microsoft.AspNetCore.StaticFiles

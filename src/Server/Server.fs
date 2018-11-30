@@ -3,190 +3,29 @@ open System.IO
 open System.Net
 open System.Net.Mime
 open FSharp.Control.Tasks.V2.ContextInsensitive
-open FSharp.Data.Sql
 open Giraffe
 open Giraffe.Serialization
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Extensions.Logging
 open Microsoft.Net.Http.Headers
-open Saturn
 open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Processing
-open Shared
 open SixLabors.Primitives
 open Thoth.Json.Giraffe
+open Shared
 
 let publicPath = Path.GetFullPath "../Client/public"
-
-let httpPort = 8085
-let httpsPort = 8086
 
 let configureSerialization (services:IServiceCollection) =
     services.AddSingleton<IJsonSerializer>(ThothSerializer())
 
-let getGroups() = task {
-    let! classNames =
-        query {
-            for p in SisDb.sis2.Pupil do
-            where p.SchoolClass.IsSome
-            sortBy p.SchoolClass
-            select (Students p.SchoolClass.Value)
-            distinct
-        }
-        |> Seq.executeQueryAsync
-        |> Async.StartAsTask
-    return [
-        yield Teachers
-        yield! classNames
-    ]
-}
-
-type Teacher = {
-    ShortName: string
-    FirstName: string
-    LastName: string
-}
-
-type Student = {
-    Id: string
-    FirstName: string
-    LastName: string
-    ClassName: string
-}
-
-let tryGetFileInDir dir fileName =
-    try
-        Directory.EnumerateFiles dir
-        |> Seq.tryFind (fun f -> Path.GetFileNameWithoutExtension(f).Equals(fileName, StringComparison.InvariantCultureIgnoreCase))
-    with :? DirectoryNotFoundException -> None
-
-let tryGetTeacherImage dir (teacher: Teacher) =
-    sprintf "%s_%s" teacher.LastName teacher.FirstName
-    |> tryGetFileInDir dir
-
-let tryGetStudentImage dir student =
-    let classDir = Path.Combine(dir, student.ClassName)
-    sprintf "%s_%s" student.LastName student.FirstName
-    |> tryGetFileInDir classDir
-
-let getTeachers imageDir = task {
-    let! teachers =
-        query {
-            for p in SisDb.sis2.Lehrer do
-            where p.Ausgeschieden.IsNone
-            where p.Lname.IsSome
-            where p.Lvorname.IsSome
-            sortBy p.Llogin
-            thenBy p.Lname
-            thenBy p.Lvorname
-            select {
-                ShortName = p.Llogin
-                LastName = p.Lname.Value
-                FirstName = p.Lvorname.Value
-            }
-        }
-        |> Seq.executeQueryAsync
-        |> Async.StartAsTask
-
-    return
-        teachers
-        |> Seq.choose (fun teacher ->
-            match tryGetTeacherImage imageDir teacher with
-            | Some _ ->
-                {
-                    DisplayName = sprintf "%s - %s %s" teacher.ShortName (teacher.LastName.ToUpper()) teacher.FirstName
-                    ImageUrl = sprintf "/api/get-teacher-image/%s" teacher.ShortName
-                }
-                |> Some
-            | None ->
-                // printfn "Can't find image for %s %s" p.LastName p.FirstName
-                None
-        )
-        |> Seq.toList
-}
-
-let getTeacherImage imageDir teacherId = task {
-    let! teacher =
-        query {
-            for p in SisDb.sis2.Lehrer do
-            where p.Ausgeschieden.IsNone
-            where (p.Llogin = teacherId)
-            where p.Lname.IsSome
-            where p.Lvorname.IsSome
-            select {
-                ShortName = p.Llogin
-                LastName = p.Lname.Value
-                FirstName = p.Lvorname.Value
-            }
-        }
-        |> Seq.tryHeadAsync
-        |> Async.StartAsTask
-
-    return
-        teacher
-        |> Option.bind (tryGetTeacherImage imageDir)
-}
-
-let getStudents imageDir className = task {
-    let! students =
-        query {
-            for p in SisDb.sis2.Pupil do
-            where (p.SchoolClass =% className)
-            where p.FirstName1.IsSome
-            where p.LastName.IsSome
-            sortBy p.LastName
-            thenBy p.FirstName1
-            select {
-                Id = p.SokratesId
-                FirstName = p.FirstName1.Value
-                LastName = p.LastName.Value
-                ClassName = p.SchoolClass.Value
-            }
-        }
-        |> Seq.executeQueryAsync
-        |> Async.StartAsTask
-
-    return
-        students
-        |> Seq.choose (fun student ->
-            match tryGetStudentImage imageDir student with
-            | Some _ ->
-                {
-                    DisplayName = sprintf "%s %s" (student.LastName.ToUpper()) student.FirstName
-                    ImageUrl = sprintf "/api/get-student-image/%s" student.Id
-                }
-                |> Some
-            | None ->
-                // printfn "Can't find image for %s %s" student.LastName student.FirstName
-                None
-        )
-        |> Seq.toList
-}
-
-let getStudentImage imageDir studentId = task {
-    let! student =
-        query {
-            for p in SisDb.sis2.Pupil do
-            where (p.SokratesId = studentId)
-            where p.FirstName1.IsSome
-            where p.LastName.IsSome
-            where p.SchoolClass.IsSome
-            select {
-                Id = p.SokratesId
-                FirstName = p.FirstName1.Value
-                LastName = p.LastName.Value
-                ClassName = p.SchoolClass.Value
-            }
-        }
-        |> Seq.tryHeadAsync
-        |> Async.StartAsTask
-
-    return
-        student
-        |> Option.bind (tryGetStudentImage imageDir)
-}
+let tryGetQueryValue key (request: HttpRequest) =
+    match request.Query.TryGetValue key with
+    | (true, value) -> Some value.[0]
+    | _ -> None
 
 let resizeFile (maxWidth, maxHeight) (path: string) =
     let limit value max =
@@ -224,10 +63,99 @@ let readAndResizeOptImage size = function
     | None ->
         RequestErrors.notFound (fun fn ctx -> fn ctx)
 
-let tryGetQueryValue key (request: HttpRequest) =
-    match request.Query.TryGetValue key with
-    | (true, value) -> Some value.[0]
-    | _ -> None
+let getGroups classList : HttpHandler =
+    fun next ctx ->
+        task {
+            let! classNames = Async.StartAsTask classList
+            let groups = [
+                yield Teachers
+                yield! List.map Students classNames
+            ]
+            return! Successful.OK groups next ctx
+        }
+
+let tryGetFileInDir dir fileName =
+    try
+        Directory.EnumerateFiles dir
+        |> Seq.tryFind (fun f -> Path.GetFileNameWithoutExtension(f).Equals(fileName, StringComparison.InvariantCultureIgnoreCase))
+    with :? DirectoryNotFoundException -> None
+
+let tryGetTeacherImage dir (teacher: Db.Teacher) =
+    sprintf "%s_%s" teacher.LastName teacher.FirstName
+    |> tryGetFileInDir dir
+
+let tryGetStudentImage dir (student: Db.Student) =
+    let classDir = Path.Combine(dir, student.ClassName)
+    sprintf "%s_%s" student.LastName student.FirstName
+    |> tryGetFileInDir classDir
+
+let getTeachers imageDir teachers : HttpHandler =
+    fun next ctx ->
+        task {
+            let! teachers = Async.StartAsTask teachers
+            let persons = 
+                teachers
+                |> Seq.choose (fun teacher ->
+                    match tryGetTeacherImage imageDir teacher with
+                    | Some _ ->
+                        {
+                            DisplayName = sprintf "%s - %s %s" teacher.ShortName (teacher.LastName.ToUpper()) teacher.FirstName
+                            ImageUrl = sprintf "/api/get-teacher-image/%s" teacher.ShortName
+                        }
+                        |> Some
+                    | None ->
+                        // printfn "Can't find image for %s %s" p.LastName p.FirstName
+                        None
+                )
+                |> Seq.toList
+            return! Successful.OK persons next ctx
+        }
+
+let getTeacherImage imageDir tryGetTeacher teacherId : HttpHandler =
+    fun next ctx ->
+        task {
+            let! teacher = tryGetTeacher teacherId |> Async.StartAsTask
+            let imagePath =
+                teacher
+                |> Option.bind (tryGetTeacherImage imageDir)
+            let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
+            let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
+            return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
+        }
+
+let getStudents imageDir getStudents className : HttpHandler = 
+    fun next ctx ->
+        task {
+            let! students = getStudents className
+            let persons =
+                students
+                |> Seq.choose (fun student ->
+                    match tryGetStudentImage imageDir student with
+                    | Some _ ->
+                        {
+                            DisplayName = sprintf "%s %s" (student.LastName.ToUpper()) student.FirstName
+                            ImageUrl = sprintf "/api/get-student-image/%s" student.Id
+                        }
+                        |> Some
+                    | None ->
+                        // printfn "Can't find image for %s %s" student.LastName student.FirstName
+                        None
+                )
+                |> Seq.toList
+            return! Successful.OK persons next ctx
+        }
+
+let getStudentImage imageDir tryGetStudent studentId : HttpHandler =
+    fun next ctx ->
+        task {
+            let! student = tryGetStudent studentId |> Async.StartAsTask
+            let imagePath =
+                student
+                |> Option.bind (tryGetStudentImage imageDir)
+            let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
+            let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
+            return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
+        }
 
 let getEnvVar name =
     Environment.GetEnvironmentVariable name
@@ -240,83 +168,64 @@ let getEnvVarOrFail name =
 
 [<EntryPoint>]
 let main argv =
-    let sslCertPath = getEnvVar "SSL_CERT_PATH"
+    let sslCertPath = getEnvVarOrFail "SSL_CERT_PATH"
     let sslCertPassword = getEnvVar "SSL_CERT_PASSWORD"
+    let connectionString = getEnvVarOrFail "SISDB_CONNECTION_STRING"
     let teacherImageDir = getEnvVarOrFail "TEACHER_IMAGE_DIR"
     let studentImageDir = getEnvVarOrFail "STUDENT_IMAGE_DIR"
+    let classList = Db.getClassList connectionString
+    let teachers = Db.getTeachers connectionString
+    let tryGetTeacher = Db.tryGetTeacher connectionString
+    let students = Db.getStudents connectionString
+    let tryGetStudent = Db.tryGetStudent connectionString
 
-    let apiRouter = router {
-        get "/api/get-groups" (fun next ctx ->
-            task {
-                let! data = getGroups()
-                return! Successful.OK data next ctx
-            }
-        )
+    let webApp = choose [
+        GET >=> choose [
+            route "/api/get-groups" >=> getGroups classList
+            route "/api/get-teachers" >=> getTeachers teacherImageDir teachers
+            routef "/api/get-teacher-image/%s" (getTeacherImage teacherImageDir tryGetTeacher) 
+            routef "/api/get-students/%s" (getStudents studentImageDir students)
+            routef "/api/get-student-image/%s" (getStudentImage studentImageDir tryGetStudent)
+        ]
+    ]
 
-        get "/api/get-teachers" (fun next ctx ->
-            task {
-                let! data = getTeachers teacherImageDir
-                return! Successful.OK data next ctx
-            }
-        )
+    let errorHandler (ex : Exception) (logger : ILogger) =
+        logger.LogError(ex, "An unhandled exception has occurred while executing the request.")
+        clearResponse >=> setStatusCode 500 >=> text ex.Message
 
-        getf "/api/get-teacher-image/%s" (fun teacherId next ctx ->
-            task {
-                let! imagePath = getTeacherImage teacherImageDir teacherId
-                let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
-                let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
-                return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
-            }
-        )
+    let configureApp (app : IApplicationBuilder) =
+        let env = app.ApplicationServices.GetService<IHostingEnvironment>()
+        match env.IsDevelopment() with
+        | true  -> app.UseDeveloperExceptionPage() |> ignore
+        | false -> app.UseGiraffeErrorHandler errorHandler |> ignore
+        app
+            .UseHttpsRedirection()
+            .UseDefaultFiles()
+            .UseStaticFiles()
+            // .UseAuthentication()
+            .UseGiraffe(webApp)
 
-        getf "/api/get-students/%s" (fun className next ctx ->
-            task {
-                let! data = getStudents studentImageDir className
-                return! Successful.OK data next ctx
-            }
-        )
+    let configureServices (services : IServiceCollection) =
+        services.AddGiraffe() |> ignore
+        services.AddSingleton<IJsonSerializer>(ThothSerializer()) |> ignore
 
-        getf "/api/get-student-image/%s" (fun studentId next ctx ->
-            task {
-                let! imagePath = getStudentImage studentImageDir studentId
-                let maxWidth = tryGetQueryValue "max-width" ctx.Request |> Option.map int
-                let maxHeight = tryGetQueryValue "max-height" ctx.Request |> Option.map int
-                return! readAndResizeOptImage (maxWidth, maxHeight) imagePath next ctx
-            }
-        )
-    }
+    let configureLogging (ctx: WebHostBuilderContext) (builder : ILoggingBuilder) =
+        builder
+            .AddFilter(fun l -> ctx.HostingEnvironment.IsDevelopment() || l.Equals LogLevel.Error)
+            .AddConsole()
+            .AddDebug() |> ignore
 
-    let app = application {
-        use_router apiRouter
-        memory_cache
-        use_static publicPath
-        service_config configureSerialization
-        use_gzip
-        host_config(fun host ->
-            host.UseKestrel(fun options ->
-                options.ListenAnyIP httpPort
-                options.ListenAnyIP(httpsPort, fun listenOptions ->
-#if DEBUG
-                    listenOptions.UseHttps() |> ignore
-#else
-                    listenOptions.UseHttps(sslCertPath, sslCertPassword) |> ignore
-#endif
-                )
+    WebHostBuilder()
+        .UseKestrel(fun options ->
+            options.ListenAnyIP 5000
+            options.ListenAnyIP(5001, fun listenOptions ->
+                listenOptions.UseHttps(sslCertPath, sslCertPassword) |> ignore
             )
         )
-        app_config(fun app ->
-#if DEBUG
-            app.UseDeveloperExceptionPage()
-#else
-            // app.UseExceptionHandler("/Error")
-            app.UseHsts()
-#endif
-        )
-        service_config (fun services ->
-            services.AddHttpsRedirection(fun options ->
-                options.HttpsPort <- Nullable<_> httpsPort
-            )
-        )
-    }
-    run app
+        .UseWebRoot(publicPath)
+        .Configure(Action<IApplicationBuilder> configureApp)
+        .ConfigureServices(configureServices)
+        .ConfigureLogging(configureLogging)
+        .Build()
+        .Run()
     0
