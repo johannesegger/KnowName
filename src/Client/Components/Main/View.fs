@@ -53,17 +53,9 @@ let root model dispatch =
                                         PageLoader.IsActive true ]
                     [ R.span [ Class Heading.Classes.Title; Style [ FontVariant "small-caps" ] ] [ R.str "Daten werden geladen" ] ]
             | Loaded data ->
-                Container.container
-                    [ Container.Props
-                        [ Style
-                            [ Display "flex"
-                              FlexFlow "column"
-                              Height "100vh"
-                            ]
-                        ]
-                    ]
+                Container.container []
                     [
-                      yield R.div [ Style [ Padding "0.75rem"; Flex "0 1 auto" ] ]
+                      yield R.div [ Style [ Padding "0.75rem" ] ]
                         [ Level.level [ Level.Level.Option.Props [ Style [ Width "100%" ] ] ]
                             [ Level.item [ Level.Item.HasTextCentered ]
                                 [ R.div []
@@ -121,10 +113,10 @@ let root model dispatch =
                                 [ RawGroup.toString group |> sprintf "Fehler beim Laden der Gruppe %s" |> R.str ]
                             ]
                         | Selection ({ RemainingPersons = currentPerson :: _ } as playingModel) ->
-                            [ Container.container [ Container.Props [ Style [ Display "flex"; Flex "1 1 auto" ] ] ]
-                                [ Tile.ancestor [ Tile.Props [ Style [ MinHeight "auto"; MaxHeight "100%"; Margin "0" ] ] ]
-                                    [ Tile.parent [ Tile.Size Tile.Is8; Tile.Props [ Style [ MinHeight "auto" ] ] ]
-                                        [ Tile.child [ Tile.Props [ Style [ MinHeight "auto" ] ] ]
+                            [ Container.container [ Container.Props [ Style [ Display "flex"; Height "calc(100vh - 100px)" ] ] ]
+                                [ Tile.ancestor []
+                                    [ Tile.parent [ Tile.Size Tile.Is8 ]
+                                        [ Tile.child []
                                             [ Box.box' [ Props [ Style [ Height "100%" ] ] ]
                                                 [ Image.image [ Image.Props [ Style [ Height "100%" ] ] ]
                                                     [ R.img
